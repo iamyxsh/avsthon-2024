@@ -3,7 +3,8 @@ pragma solidity ^0.8.13;
 
 import {ILiquidityManager} from "./interfaces/ILiquidityManager.sol";
 import {Liquidity} from "./models/structs.sol";
-import {LiquidityManager__TokenTransferFailed, LiquidityManager__AllowanceNotEnough, LiquidityManager__QuantityIsZero, LiquidityManager__MaxPriceLowerThanMinPrice, LiquidityManager__AmountIsZero} from "./errors/ELiquidityManager.sol";
+import {LiquidityManager__TokenTransferFailed, LiquidityManager__AllowanceNotEnough, LiquidityManager__QuantityIsZero, LiquidityManager__MaxPriceLowerThanMinPrice, LiquidityManager__AmountIsZero} from "./errors/ErrLiquidityManager.sol";
+import {LiquidityManager__LiquidityDeposited, LiquidityManager__LiquidityWithdrawn} from "./events/EventsLiquidityManager.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/Console.sol";
 
@@ -56,13 +57,18 @@ contract LiquidityManager is ILiquidityManager {
 
         uint256 totalLgs = _updateLiquidityGroupId(msg.sender);
         _setLiquidity(totalLgs, lg, msg.sender);
+
+        emit LiquidityManager__LiquidityDeposited(
+            msg.sender,
+            totalLgs,
+            _amount,
+            _minPrice,
+            _maxPrice
+        );
     }
 
-    function withdrawLiquidity(
-        address _liquidityProvider,
-        uint256 _groupId
-    ) external override {
-        Liquidity memory lpg = _getLiquidtyById(_liquidityProvider, _groupId);
+    function withdrawLiquidity(uint256 _groupId) external override {
+        Liquidity memory lpg = _getLiquidtyById(msg.sender, _groupId);
         uint256 quantity = lpg.quantity;
 
         if (lpg.quantity == 0) {
@@ -73,6 +79,8 @@ contract LiquidityManager is ILiquidityManager {
         _setLiquidity(_groupId, lpg, msg.sender);
 
         _transferTokens(address(0), msg.sender, quantity);
+
+        emit LiquidityManager__LiquidityWithdrawn(msg.sender, _groupId);
     }
 
     ///----------------------- Helpers -----------------------///

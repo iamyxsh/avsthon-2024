@@ -4,7 +4,8 @@ pragma solidity ^0.8.13;
 import {IOrderBookManager} from "../src/interfaces/IOrderBookManager.sol";
 import {Order} from "./models/structs.sol";
 import {console} from "forge-std/Console.sol";
-import {OrderBookManager__AmountIsZero, OrderBookManager__TokenTransferFailed, OrderBookManager__AllowanceNotEnough, OrderBookManager__MaxPriceLowerThanMinPrice} from "./errors/EOrderBookManager.sol";
+import {OrderBookManager__OrderCreated} from "./events/EventsOrderBookManager.sol";
+import {OrderBookManager__AmountIsZero, OrderBookManager__SenderIsNotMatcher, OrderBookManager__TokenTransferFailed, OrderBookManager__AllowanceNotEnough, OrderBookManager__MaxPriceLowerThanMinPrice} from "./errors/ErrOrderBookManager.sol";
 import {OrderType, BuyOrSell, OrderFulfilled} from "./models/enums.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
@@ -27,6 +28,15 @@ contract OrderBookManager is IOrderBookManager {
         MATCHER = _matcher;
     }
 
+    ///----------------------- Modifiers -----------------------///
+
+    modifier onlyMatcher() {
+        if (!_isMatcher()) {
+            revert OrderBookManager__SenderIsNotMatcher();
+        }
+        _;
+    }
+
     ///----------------------- Getters -----------------------///
 
     function getTokenPair()
@@ -43,6 +53,19 @@ contract OrderBookManager is IOrderBookManager {
         matcher = _getMatcher();
     }
 
+    function getOrderById(
+        OrderType _orderType,
+        uint256 _groupId
+    ) external view override returns (Order memory) {
+        if (_orderType == OrderType.MARKET) {
+            return _getMarketOrderById(_groupId);
+        } else {
+            return _getLimitOrderById(_groupId);
+        }
+    }
+
+    ///----------------------- Setters -----------------------///
+
     function createOrder(
         uint256 _amount,
         uint256 _minPrice,
@@ -56,9 +79,7 @@ contract OrderBookManager is IOrderBookManager {
         if (_minPrice > _maxPrice) {
             revert OrderBookManager__MaxPriceLowerThanMinPrice();
         }
-        IERC20 token = _buyOrSell == BuyOrSell.BUY
-            ? IERC20(BASE_TOKEN)
-            : IERC20(QUOTE_TOKEN);
+        IERC20 token = _returnBuyOrSellToken(_buyOrSell);
 
         if (token.allowance(msg.sender, address(this)) < _amount) {
             revert OrderBookManager__AllowanceNotEnough();
@@ -83,17 +104,16 @@ contract OrderBookManager is IOrderBookManager {
             order.id = limitOrders.length + 1;
             limitOrders.push(order);
         }
-    }
 
-    function getOrderById(
-        OrderType _orderType,
-        uint256 _groupId
-    ) external view override returns (Order memory) {
-        if (_orderType == OrderType.MARKET) {
-            return _getMarketOrderById(_groupId);
-        } else {
-            return _getLimitOrderById(_groupId);
-        }
+        emit OrderBookManager__OrderCreated(
+            msg.sender,
+            order.id,
+            _amount,
+            _minPrice,
+            _maxPrice,
+            _orderType,
+            _buyOrSell
+        );
     }
 
     function matchOrder(
@@ -141,9 +161,21 @@ contract OrderBookManager is IOrderBookManager {
         return marketOrders[_id - 1];
     }
 
+    function _isMatcher() internal view returns (bool) {
+        return msg.sender == MATCHER;
+    }
+
     function _getLimitOrderById(
         uint256 _id
     ) internal view returns (Order memory) {
         return limitOrders[_id - 1];
+    }
+    function _returnBuyOrSellToken(
+        BuyOrSell _buyOrSell
+    ) internal view returns (IERC20) {
+        return
+            _buyOrSell == BuyOrSell.BUY
+                ? IERC20(BASE_TOKEN)
+                : IERC20(QUOTE_TOKEN);
     }
 }

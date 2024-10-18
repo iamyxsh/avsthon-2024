@@ -92,7 +92,7 @@ contract TestUtils is Test {
 
     function withdrawLiquidity(LiquidityManager lm, uint256 id) public {
         vm.startPrank(bob);
-        lm.withdrawLiquidity(bob, id);
+        lm.withdrawLiquidity(id);
         vm.stopPrank();
     }
 }

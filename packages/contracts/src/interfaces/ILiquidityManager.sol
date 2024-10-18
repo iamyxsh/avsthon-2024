@@ -17,8 +17,5 @@ interface ILiquidityManager {
         uint256 _groupId
     ) external returns (Liquidity memory);
 
-    function withdrawLiquidity(
-        address _liquidityProvider,
-        uint256 _groupId
-    ) external;
+    function withdrawLiquidity(uint256 _groupId) external;
 }
