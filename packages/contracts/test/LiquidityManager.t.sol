@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
 import {LiquidityManager} from "../src/LiquidityManager.sol";
-import {Liquidity} from "../src/interfaces/ILiquidityManager.sol";
+import {Liquidity} from "../src/models/structs.sol";
 import {TestUtils} from "./utils/TestUtils.sol";
 
 contract LiquidityManagerTest is Test, TestUtils {
@@ -28,11 +28,7 @@ contract LiquidityManagerTest is Test, TestUtils {
 
         uint256 balance1 = usdc.balanceOf(bob);
 
-        vm.startPrank(bob);
-        usdc.approve(address(lm), amount);
-
-        lm.depositLiquidity(amount, minPrice, maxPrice);
-        vm.stopPrank();
+        addLiquidity(lm, amount, minPrice, maxPrice);
 
         Liquidity memory lg = lm.getLiquidtyById(bob, 1);
 
@@ -59,7 +55,6 @@ contract LiquidityManagerTest is Test, TestUtils {
         Liquidity memory lg = lm.getLiquidtyById(bob, 1);
 
         assertEq((balance2 - balance1), amount);
-
         assertEq(lg.quantity, 0);
     }
 }

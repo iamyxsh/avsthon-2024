@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {ILiquidityManager, Liquidity, LiquidityManager__TokenTransferFailed, LiquidityManager__AllowanceNotEnough, LiquidityManager__QuantityIsZero, LiquidityManager__MaxPriceLowerThanMinPrice, LiquidityManager__AmountIsZero} from "./interfaces/ILiquidityManager.sol";
+import {ILiquidityManager} from "./interfaces/ILiquidityManager.sol";
+import {Liquidity} from "./models/structs.sol";
+import {LiquidityManager__TokenTransferFailed, LiquidityManager__AllowanceNotEnough, LiquidityManager__QuantityIsZero, LiquidityManager__MaxPriceLowerThanMinPrice, LiquidityManager__AmountIsZero} from "./errors/ELiquidityManager.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/Console.sol";
 
@@ -50,11 +52,10 @@ contract LiquidityManager is ILiquidityManager {
 
         _transferTokens(msg.sender, address(this), _amount);
 
-        uint256 totalLgs = totalGroupsById[msg.sender];
-        totalGroupsById[msg.sender] = totalLgs++;
-
         Liquidity memory lg = Liquidity(_amount, _minPrice, _maxPrice);
-        _setLiquidity(totalLgs, lg);
+
+        uint256 totalLgs = _updateLiquidityGroupId(msg.sender);
+        _setLiquidity(totalLgs, lg, msg.sender);
     }
 
     function withdrawLiquidity(
@@ -69,7 +70,7 @@ contract LiquidityManager is ILiquidityManager {
         }
 
         lpg.quantity = 0;
-        _setLiquidity(_groupId, lpg);
+        _setLiquidity(_groupId, lpg, msg.sender);
 
         _transferTokens(address(0), msg.sender, quantity);
     }
@@ -83,8 +84,19 @@ contract LiquidityManager is ILiquidityManager {
         return liquidityGroups[_liquidityProvider][_groupId];
     }
 
-    function _setLiquidity(uint256 _groupId, Liquidity memory lpg) internal {
-        liquidityGroups[msg.sender][_groupId] = lpg;
+    function _setLiquidity(
+        uint256 _groupId,
+        Liquidity memory lpg,
+        address _liquidityProvider
+    ) internal {
+        liquidityGroups[_liquidityProvider][_groupId] = lpg;
+    }
+
+    function _updateLiquidityGroupId(
+        address _liquidityProvider
+    ) internal returns (uint256 totalLgs) {
+        totalLgs = totalGroupsById[_liquidityProvider];
+        totalGroupsById[_liquidityProvider] = totalLgs++;
     }
 
     function _transferTokens(

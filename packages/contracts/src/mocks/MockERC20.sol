@@ -10,6 +10,6 @@ contract MockERC20 is ERC20 {
     ) ERC20(_name, _symbol) {}
 
     function mint(address _reciever) public {
-        _mint(_reciever, 100 ether);
+        _mint(_reciever, type(uint128).max);
     }
 }
